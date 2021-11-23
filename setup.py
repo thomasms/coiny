@@ -1,7 +1,7 @@
 import os
 from setuptools import setup
 
-VERSION = "0.0.1"
+VERSION = "0.0.2"
 #with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), '.VERSION'), 'rt') as vfile:
 #    VERSION = vfile.readlines()[0].strip("\n").strip()
 
@@ -16,7 +16,9 @@ setup(name='coiny',
       packages=[
           'coiny',
       ],
-      install_requires=[],
+      install_requires=[
+          'aiohttp',
+      ],
       python_requires='>=3.7',
       scripts=[
           'coiny/tools/checkaccounts.py'
