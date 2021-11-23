@@ -188,10 +188,7 @@ async def get_accounts(addresses):
     return account_data
 
 
-async def main():
-
-    currency = "eur"
-    coinsfile = "mycoins.json"
+async def check_accounts_async(coinsfile="mycoins.json", currency="eur"):
 
     addresses = []
     with open(coinsfile, "rt") as jfile:
@@ -227,5 +224,6 @@ async def main():
     print(f"{'total':<14} = {total:10.2f} {currency} ({100:.2f}%)")
 
 
-if __name__ == "__main__":
-    asyncio.run(main())
+def check_accounts(coinsfile="mycoins.json", currency="eur"):
+    asyncio.run(check_accounts_async(coinsfile=coinsfile, currency=currency))
+
