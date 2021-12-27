@@ -9,3 +9,6 @@ from coiny.supported.ethereum import *
 
 BTC: Final[str] = "bitcoin"
 from coiny.supported.bitcoin import *
+
+HTR: Final[str] = "hathor"
+from coiny.supported.hathor import *

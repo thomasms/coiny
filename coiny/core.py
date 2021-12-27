@@ -2,17 +2,19 @@ from collections import defaultdict
 import json
 import asyncio
 from aiohttp import ClientSession
+from typing import Dict, List, Tuple
 
 from coiny.utils import (
     FunctionRegisterBorg,
     NullAccount,
     NullCoinPrice,
     CoinPrice,
+    Account,
 )
 from coiny.supported import *
 
 
-def price_now_url(coin, currency="eur"):
+def price_now_url(coin, currency="eur") -> Dict:
     """
     coin can be either: bitcoin, ethereum, dogecoin, ...
     currency can be either: usd, gbp, eur, ....
@@ -21,7 +23,7 @@ def price_now_url(coin, currency="eur"):
     return f"https://api.coingecko.com/api/v3/simple/price?ids={coin}&vs_currencies={currency}"
 
 
-async def price_task(work_queue):
+async def price_task(work_queue) -> CoinPrice:
     rate = NullCoinPrice
     async with ClientSession() as session:
         while not work_queue.empty():
@@ -33,7 +35,7 @@ async def price_task(work_queue):
     return rate
 
 
-async def balance_task(work_queue):
+async def balance_task(work_queue) -> Account:
     account = NullAccount
     async with ClientSession() as session:
         while not work_queue.empty():
@@ -45,7 +47,7 @@ async def balance_task(work_queue):
     return account
 
 
-async def get_prices(coins, currency="eur"):
+async def get_prices(coins: List[str], currency: str = "eur") -> List[CoinPrice]:
     work_queue = asyncio.Queue()
 
     for coin in coins:
@@ -58,7 +60,7 @@ async def get_prices(coins, currency="eur"):
     return price_data
 
 
-async def get_accounts(addresses):
+async def get_accounts(addresses: List[Tuple[str, str]]) -> List[Account]:
     work_queue = asyncio.Queue()
 
     borg = FunctionRegisterBorg()
@@ -79,7 +81,9 @@ async def get_accounts(addresses):
     return account_data
 
 
-async def check_accounts_async(coinsfile="mycoins.json", currency="eur"):
+async def check_accounts_async(
+    coinsfile: str = "mycoins.json", currency: str = "eur"
+) -> None:
 
     addresses = []
     with open(coinsfile, "rt") as jfile:
@@ -115,5 +119,5 @@ async def check_accounts_async(coinsfile="mycoins.json", currency="eur"):
     print(f"{'total':<14} = {total:10.2f} {currency} ({100:.2f}%)")
 
 
-def check_accounts(coinsfile="mycoins.json", currency="eur"):
+def check_accounts(coinsfile: str = "mycoins.json", currency: str = "eur") -> None:
     asyncio.run(check_accounts_async(coinsfile=coinsfile, currency=currency))
