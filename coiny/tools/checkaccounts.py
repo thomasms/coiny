@@ -7,9 +7,10 @@ from coiny.core import check_accounts
 
 def main():
     # Command line argument support
-    parser = argparse.ArgumentParser(description='Crypto coin checker')
-    parser.add_argument('coinfile', type=argparse.FileType('r'),
-                        help='The coin JSON file')
+    parser = argparse.ArgumentParser(description="Crypto coin checker")
+    parser.add_argument(
+        "coinfile", type=argparse.FileType("r"), help="The coin JSON file"
+    )
     args = parser.parse_args()
 
     filename = args.coinfile.name

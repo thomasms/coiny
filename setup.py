@@ -15,6 +15,7 @@ setup(name='coiny',
       license='MIT',
       packages=[
           'coiny',
+          'coiny.supported',
       ],
       install_requires=[
           'aiohttp',
