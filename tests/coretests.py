@@ -1,7 +1,7 @@
 import unittest
 from typing import Any
 
-from coiny.core import CoinPrice, CoinyQueue, CoinySession, price_task
+from coiny.core import CoinPrice, CoinyQueue, CoinySession, price_now_url, price_task
 from coiny.utils import NullCoinPrice
 
 
@@ -19,7 +19,7 @@ class HasJson:
         return self.data
 
 
-class CoreUnitTests(unittest.IsolatedAsyncioTestCase):
+class PriceTaskTests(unittest.IsolatedAsyncioTestCase):
     async def test_price_task_empty_queue(self):
         queue = CoinyQueue()
         session = CoinySession()
@@ -72,5 +72,16 @@ class CoreUnitTests(unittest.IsolatedAsyncioTestCase):
             result = await price_task(queue, session)
             self.assertEqual(NullCoinPrice, result)
 
+    async def test_price_task_real_eth(self):
+        queue = CoinyQueue()
+        await queue.put(("ethereum", "eur", price_now_url("ethereum", "eur")))
 
-__all__ = ["CoreUnitTests"]
+        async with CoinySession() as session:
+            result = await price_task(queue, session)
+            # no way to test the live price of course
+            half_expected = CoinPrice(fiat="eur", coin="ethereum", rate=0.0)
+            self.assertEqual(half_expected.fiat, result.fiat)
+            self.assertEqual(half_expected.coin, result.coin)
+
+
+__all__ = ["PriceTaskTests"]
