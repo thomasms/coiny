@@ -1,17 +1,16 @@
-from collections import defaultdict
-import json
 import asyncio
-from aiohttp import ClientSession
-from typing import Dict, List, Tuple
+import json
+from collections import defaultdict
+from typing import Any, Dict, List, Tuple
 
-from coiny.utils import (
-    FunctionRegisterBorg,
-    NullAccount,
-    NullCoinPrice,
-    CoinPrice,
-    Account,
-)
+from aiohttp import ClientSession
+
 from coiny.supported import *
+from coiny.utils import (Account, CoinPrice, FunctionRegisterBorg, NullAccount,
+                         NullCoinPrice)
+
+CoinyQueue: asyncio.Queue = asyncio.Queue
+CoinySession: ClientSession = ClientSession
 
 
 def price_now_url(coin, currency="eur") -> Dict:
@@ -23,45 +22,43 @@ def price_now_url(coin, currency="eur") -> Dict:
     return f"https://api.coingecko.com/api/v3/simple/price?ids={coin}&vs_currencies={currency}"
 
 
-async def price_task(work_queue) -> CoinPrice:
+async def price_task(work_queue: Any, session: CoinySession) -> CoinPrice:
     rate = NullCoinPrice
-    async with ClientSession() as session:
-        while not work_queue.empty():
-            coin, currency, url = await work_queue.get()
-            async with session.get(url) as response:
-                res = await response.json()
-                if coin in res and currency in res[coin]:
-                    rate = CoinPrice(fiat=currency, coin=coin, rate=res[coin][currency])
+    while not work_queue.empty():
+        coin, currency, url = await work_queue.get()
+        async with session.get(url) as response:
+            res = await response.json()
+            if coin in res and currency in res[coin]:
+                rate = CoinPrice(fiat=currency, coin=coin, rate=res[coin][currency])
     return rate
 
 
-async def balance_task(work_queue) -> Account:
+async def balance_task(work_queue: Any, session: CoinySession) -> Account:
     account = NullAccount
-    async with ClientSession() as session:
-        while not work_queue.empty():
-            acc, template_url, address = await work_queue.get()
-            url = template_url(address)
-            async with session.get(url) as response:
-                res = await response.json()
-                account = acc(res, address)
+    while not work_queue.empty():
+        acc, template_url, address = await work_queue.get()
+        url = template_url(address)
+        async with session.get(url) as response:
+            res = await response.json()
+            account = acc(res, address)
     return account
 
 
 async def get_prices(coins: List[str], currency: str = "eur") -> List[CoinPrice]:
-    work_queue = asyncio.Queue()
+    work_queue = CoinyQueue()
 
     for coin in coins:
         await work_queue.put((coin, currency, price_now_url(coin, currency=currency)))
 
-    # Run the tasks
-    price_data = await asyncio.gather(
-        *[asyncio.create_task(price_task(work_queue)) for _ in coins]
-    )
-    return price_data
+    async with CoinySession() as session:
+        price_data = await asyncio.gather(
+            *[asyncio.create_task(price_task(work_queue, session)) for _ in coins]
+        )
+        return price_data
 
 
 async def get_accounts(addresses: List[Tuple[str, str]]) -> List[Account]:
-    work_queue = asyncio.Queue()
+    work_queue = CoinyQueue()
 
     borg = FunctionRegisterBorg()
     ipts = [
@@ -75,10 +72,11 @@ async def get_accounts(addresses: List[Tuple[str, str]]) -> List[Account]:
     for acc, url, address in ipts:
         await work_queue.put((acc, url, address))
 
-    account_data = await asyncio.gather(
-        *[asyncio.create_task(balance_task(work_queue)) for _ in ipts]
-    )
-    return account_data
+    async with CoinySession() as session:
+        account_data = await asyncio.gather(
+            *[asyncio.create_task(balance_task(work_queue, session)) for _ in ipts]
+        )
+        return account_data
 
 
 async def check_accounts_async(
