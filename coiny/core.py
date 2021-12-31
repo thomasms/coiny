@@ -6,8 +6,13 @@ from typing import Any, Dict, List, Tuple
 from aiohttp import ClientSession
 
 from coiny.supported import *
-from coiny.utils import (Account, CoinPrice, FunctionRegisterBorg, NullAccount,
-                         NullCoinPrice)
+from coiny.utils import (
+    Account,
+    CoinPrice,
+    FunctionRegisterBorg,
+    NullAccount,
+    NullCoinPrice,
+)
 
 CoinyQueue: asyncio.Queue = asyncio.Queue
 CoinySession: ClientSession = ClientSession
@@ -79,25 +84,24 @@ async def get_accounts(addresses: List[Tuple[str, str]]) -> List[Account]:
         return account_data
 
 
-async def check_accounts_async(
-    coinsfile: str = "mycoins.json", currency: str = "eur"
-) -> None:
-
-    addresses = []
-    with open(coinsfile, "rt") as jfile:
+def read_config(configfile: str) -> Dict:
+    data = {}
+    with open(configfile, "rt") as jfile:
         data = json.load(jfile)
-        # address must be the key for uniqueness
-        for address, coin in data.items():
-            addresses.append((coin, address))
+    return data
 
-    coins = set([x[0] for x in addresses])
+
+async def check_accounts_async(coin_data: Dict, currency: str = "eur") -> None:
+    # address must be the key for uniqueness
+    coins_and_addresses = [(coin, address) for address, coin in coin_data.items()]
+    unique_coins = set([x[0] for x in coins_and_addresses])
 
     # CoinPrice = namedtuple("CoinPrice", ["coin", "fiat", "rate"])
-    price_data = await get_prices(coins, currency=currency)
+    price_data = await get_prices(unique_coins, currency=currency)
 
     # TODO: Filter out duplicate addresses
     # Account = namedtuple("Account", ["balance", "type", "address"])
-    account_data = await get_accounts(addresses)
+    account_data = await get_accounts(coins_and_addresses)
 
     # sum coins - we know the currency is EUR here,
     # but we should really set it in the portfolio
@@ -118,4 +122,5 @@ async def check_accounts_async(
 
 
 def check_accounts(coinsfile: str = "mycoins.json", currency: str = "eur") -> None:
-    asyncio.run(check_accounts_async(coinsfile=coinsfile, currency=currency))
+    coin_data = read_config(coinsfile)
+    asyncio.run(check_accounts_async(coin_data, currency=currency))
