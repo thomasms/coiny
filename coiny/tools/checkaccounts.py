@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import sys
 import argparse
+import traceback
 
 from coiny.core import check_accounts
 
@@ -21,8 +22,10 @@ def main():
         print(f"OS error: {err}")
     except ValueError as err:
         print(err)
-    except:
-        print("Unexpected error:", sys.exc_info()[0])
+    except Exception as err:
+        print("Unexpected error:", sys.exc_info()[0], err)
+        tb = traceback.format_exc()
+        print(tb)
 
 
 if __name__ == "__main__":

@@ -78,9 +78,13 @@ async def get_accounts(addresses: List[Tuple[str, str]]) -> List[Account]:
         await work_queue.put((acc, url, address))
 
     async with CoinySession() as session:
-        account_data = await asyncio.gather(
-            *[asyncio.create_task(balance_task(work_queue, session)) for _ in ipts]
-        )
+        try:
+            account_data = await asyncio.gather(
+                *[asyncio.create_task(balance_task(work_queue, session)) for _ in ipts]
+            )
+        except Exception as e:
+            print(e)
+            account_data = NullAccount
         return account_data
 
 
@@ -107,9 +111,10 @@ async def check_accounts_async(coin_data: Dict, currency: str = "eur") -> None:
     # but we should really set it in the portfolio
     portfolio = defaultdict(float)
     for account in account_data:
-        rates = [price.rate for price in price_data if price.coin == account.type]
-        rate = rates[0] if rates else 0.0
-        portfolio[account.type] += rate * account.balance
+        if isinstance(account, Account):
+            rates = [price.rate for price in price_data if price.coin == account.type]
+            rate = rates[0] if rates else 0.0
+            portfolio[account.type] += rate * account.balance
 
     # print(portfolio)
 
