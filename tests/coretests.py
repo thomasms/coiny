@@ -18,6 +18,10 @@ class HasJson:
     async def json(self):
         return self.data
 
+    def raise_for_status(self):
+        """Mock method for compatibility with error handling"""
+        pass
+
 
 class PriceTaskTests(unittest.IsolatedAsyncioTestCase):
     async def test_price_task_empty_queue(self):

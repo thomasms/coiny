@@ -1,9 +1,10 @@
 import asyncio
 import json
+import logging
 from collections import defaultdict
 from typing import Any, Dict, List, Tuple
 
-from aiohttp import ClientSession
+from aiohttp import ClientSession, ClientError, ClientResponseError
 
 from coiny.supported import *
 from coiny.utils import (
@@ -13,6 +14,8 @@ from coiny.utils import (
     NullAccount,
     NullCoinPrice,
 )
+
+logger = logging.getLogger(__name__)
 
 CoinyQueue: asyncio.Queue = asyncio.Queue
 CoinySession: ClientSession = ClientSession
@@ -31,10 +34,24 @@ async def price_task(work_queue: Any, session: CoinySession) -> CoinPrice:
     rate = NullCoinPrice
     while not work_queue.empty():
         coin, currency, url = await work_queue.get()
-        async with session.get(url) as response:
-            res = await response.json()
-            if coin in res and currency in res[coin]:
-                rate = CoinPrice(fiat=currency, coin=coin, rate=res[coin][currency])
+        try:
+            logger.debug(f"Fetching price for {coin} in {currency} from {url}")
+            async with session.get(url) as response:
+                response.raise_for_status()
+                res = await response.json()
+                if coin in res and currency in res[coin]:
+                    rate = CoinPrice(fiat=currency, coin=coin, rate=res[coin][currency])
+                    logger.debug(f"Successfully fetched price for {coin}: {rate.rate} {currency}")
+                else:
+                    logger.warning(f"Price data for {coin}/{currency} not found in API response")
+        except ClientResponseError as e:
+            logger.error(f"HTTP error fetching price for {coin}: {e.status} {e.message} - URL: {url}")
+        except ClientError as e:
+            logger.error(f"Connection error fetching price for {coin}: {str(e)} - URL: {url}")
+        except asyncio.TimeoutError:
+            logger.error(f"Timeout fetching price for {coin} from {url}")
+        except Exception as e:
+            logger.error(f"Unexpected error fetching price for {coin}: {type(e).__name__}: {str(e)} - URL: {url}")
     return rate
 
 
@@ -43,9 +60,21 @@ async def balance_task(work_queue: Any, session: CoinySession) -> Account:
     while not work_queue.empty():
         acc, template_url, address = await work_queue.get()
         url = template_url(address)
-        async with session.get(url) as response:
-            res = await response.json()
-            account = acc(res, address)
+        try:
+            logger.debug(f"Fetching balance for address {address} from {url}")
+            async with session.get(url) as response:
+                response.raise_for_status()
+                res = await response.json()
+                account = acc(res, address)
+                logger.debug(f"Successfully fetched balance for {address}: {account.balance}")
+        except ClientResponseError as e:
+            logger.error(f"HTTP error fetching balance for {address}: {e.status} {e.message} - URL: {url}")
+        except ClientError as e:
+            logger.error(f"Connection error fetching balance for {address}: {str(e)} - URL: {url}")
+        except asyncio.TimeoutError:
+            logger.error(f"Timeout fetching balance for {address} from {url}")
+        except Exception as e:
+            logger.error(f"Unexpected error fetching balance for {address}: {type(e).__name__}: {str(e)} - URL: {url}")
     return account
 
 
@@ -79,12 +108,14 @@ async def get_accounts(addresses: List[Tuple[str, str]]) -> List[Account]:
 
     async with CoinySession() as session:
         try:
+            logger.info(f"Fetching account data for {len(ipts)} addresses")
             account_data = await asyncio.gather(
                 *[asyncio.create_task(balance_task(work_queue, session)) for _ in ipts]
             )
+            logger.info(f"Successfully fetched {len([a for a in account_data if isinstance(a, Account)])} accounts")
         except Exception as e:
-            print(e)
-            account_data = NullAccount
+            logger.error(f"Critical error in get_accounts: {type(e).__name__}: {str(e)}")
+            account_data = [NullAccount]
         return account_data
 
 
