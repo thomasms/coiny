@@ -146,7 +146,8 @@ class ErrorHandlingTests(unittest.IsolatedAsyncioTestCase):
                 return MockResponse({}, status=500)
 
         def mock_account(data, address):
-            return Account(balance=1.0, type="BTC", address=address)
+            # Balance value is unused in this test since API returns HTTP 500 error
+            return Account(balance=0.0, type="BTC", address=address)
 
         def mock_url(address):
             return f"https://example.com/{address}"
@@ -177,7 +178,8 @@ class ErrorHandlingTests(unittest.IsolatedAsyncioTestCase):
                 return ErrorContext()
 
         def mock_account(data, address):
-            return Account(balance=1.0, type="ETH", address=address)
+            # Balance value is unused in this test since connection fails
+            return Account(balance=0.0, type="ETH", address=address)
 
         def mock_url(address):
             return f"https://example.com/{address}"

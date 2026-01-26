@@ -112,7 +112,7 @@ async def get_accounts(addresses: List[Tuple[str, str]]) -> List[Account]:
             account_data = await asyncio.gather(
                 *[asyncio.create_task(balance_task(work_queue, session)) for _ in ipts]
             )
-            logger.info(f"Successfully fetched {len([a for a in account_data if isinstance(a, Account)])} accounts")
+            logger.info(f"Successfully fetched {sum(1 for a in account_data if isinstance(a, Account))} accounts")
         except Exception as e:
             logger.error(f"Critical error in get_accounts: {type(e).__name__}: {str(e)}")
             account_data = [NullAccount]
